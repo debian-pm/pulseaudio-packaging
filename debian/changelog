@@ -1,3 +1,13 @@
+pulseaudio (10.0-2) unstable; urgency=medium
+
+  [ Balint Reczey ]
+  * Removing myself from Uploaders
+
+  [ Scott Leggett ]
+  * Move AGPL-3 text into copyright file (Closes: #863082)
+
+ -- Scott Leggett <scott@sl.id.au>  Thu, 15 Jun 2017 20:07:30 +1000
+
 pulseaudio (10.0-1) unstable; urgency=medium
 
   * New upstream release
