@@ -65,6 +65,7 @@ struct hf_audio_card {
     char *remote_address;
     char *local_address;
 
+    bool connecting;
     int fd;
     uint8_t codec;
 
@@ -155,13 +156,29 @@ static int hf_audio_agent_transport_acquire(pa_bluetooth_transport *t, bool opti
 
     pa_assert(card);
 
-    if (!optional) {
-        DBusMessage *m;
+    if (!optional && card->fd < 0) {
+        DBusMessage *m, *r;
+        DBusError derr;
 
+        if (card->connecting)
+            return -EAGAIN;
+
+        card->connecting = true;
+
+        dbus_error_init(&derr);
         pa_assert_se(m = dbus_message_new_method_call(t->owner, t->path, "org.ofono.HandsfreeAudioCard", "Connect"));
-        pa_assert_se(dbus_connection_send(pa_dbus_connection_get(card->backend->connection), m, NULL));
+        r = dbus_connection_send_with_reply_and_block(pa_dbus_connection_get(card->backend->connection), m, -1, &derr);
+        dbus_message_unref(m);
+        m = NULL;
 
-        return -1;
+        if (!r)
+            return -1;
+
+        dbus_message_unref(r);
+        r = NULL;
+
+        if (card->connecting)
+            return -EAGAIN;
     }
 
     /* The correct block size should take into account the SCO MTU from
@@ -190,13 +207,10 @@ static void hf_audio_agent_transport_release(pa_bluetooth_transport *t) {
 
     pa_assert(card);
 
-    if (t->state <= PA_BLUETOOTH_TRANSPORT_STATE_IDLE) {
+    if (card->fd < 0) {
         pa_log_info("Transport %s already released", t->path);
         return;
     }
-
-    if (card->fd < 0)
-        return;
 
     /* shutdown to make sure connection is dropped immediately */
     shutdown(card->fd, SHUT_RDWR);
@@ -209,6 +223,7 @@ static void hf_audio_agent_card_found(pa_bluetooth_backend *backend, const char 
     const char *key, *value;
     struct hf_audio_card *card;
     pa_bluetooth_device *d;
+    pa_bluetooth_profile_t p = PA_BLUETOOTH_PROFILE_HEADSET_AUDIO_GATEWAY;
 
     pa_assert(backend);
     pa_assert(path);
@@ -240,6 +255,9 @@ static void hf_audio_agent_card_found(pa_bluetooth_backend *backend, const char 
         } else if (pa_streq(key, "LocalAddress")) {
             pa_xfree(card->local_address);
             card->local_address = pa_xstrdup(value);
+        } else if (pa_streq(key, "Type")) {
+            if (pa_streq(value, "gateway"))
+                p = PA_BLUETOOTH_PROFILE_HEADSET_HEAD_UNIT;
         }
 
         pa_log_debug("%s: %s", key, value);
@@ -253,7 +271,7 @@ static void hf_audio_agent_card_found(pa_bluetooth_backend *backend, const char 
         goto fail;
     }
 
-    card->transport = pa_bluetooth_transport_new(d, backend->ofono_bus_id, path, PA_BLUETOOTH_PROFILE_HEADSET_AUDIO_GATEWAY, NULL, 0);
+    card->transport = pa_bluetooth_transport_new(d, backend->ofono_bus_id, path, p, NULL, 0);
     card->transport->acquire = hf_audio_agent_transport_acquire;
     card->transport->release = hf_audio_agent_transport_release;
     card->transport->userdata = card;
@@ -529,9 +547,13 @@ static DBusMessage *hf_audio_agent_new_connection(DBusConnection *c, DBusMessage
 
     card = pa_hashmap_get(backend->cards, path);
 
-    if (!card || codec != HFP_AUDIO_CODEC_CVSD || card->transport->state == PA_BLUETOOTH_TRANSPORT_STATE_PLAYING) {
+    card->connecting = false;
+
+    if (!card || codec != HFP_AUDIO_CODEC_CVSD || card->fd >= 0) {
         pa_log_warn("New audio connection invalid arguments (path=%s fd=%d, codec=%d)", path, fd, codec);
         pa_assert_se(r = dbus_message_new_error(m, "org.ofono.Error.InvalidArguments", "Invalid arguments in method call"));
+        shutdown(fd, SHUT_RDWR);
+        close(fd);
         return r;
     }
 

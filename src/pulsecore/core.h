@@ -75,6 +75,7 @@ typedef enum pa_core_hook {
     PA_CORE_HOOK_SINK_FLAGS_CHANGED,
     PA_CORE_HOOK_SINK_VOLUME_CHANGED,
     PA_CORE_HOOK_SINK_MUTE_CHANGED,
+    PA_CORE_HOOK_SINK_PORT_LATENCY_OFFSET_CHANGED,
     PA_CORE_HOOK_SOURCE_NEW,
     PA_CORE_HOOK_SOURCE_FIXATE,
     PA_CORE_HOOK_SOURCE_PUT,
@@ -86,6 +87,7 @@ typedef enum pa_core_hook {
     PA_CORE_HOOK_SOURCE_FLAGS_CHANGED,
     PA_CORE_HOOK_SOURCE_VOLUME_CHANGED,
     PA_CORE_HOOK_SOURCE_MUTE_CHANGED,
+    PA_CORE_HOOK_SOURCE_PORT_LATENCY_OFFSET_CHANGED,
     PA_CORE_HOOK_SINK_INPUT_NEW,
     PA_CORE_HOOK_SINK_INPUT_FIXATE,
     PA_CORE_HOOK_SINK_INPUT_PUT,
@@ -160,9 +162,21 @@ struct pa_core {
     /* Some hashmaps for all sorts of entities */
     pa_hashmap *namereg, *shared;
 
-    /* The default sink/source */
-    pa_source *default_source;
+    /* The default sink/source as configured by the user. If the user hasn't
+     * explicitly configured anything, these are set to NULL. These are strings
+     * instead of sink/source pointers, because that allows us to reference
+     * devices that don't currently exist. That's useful for remembering that
+     * a hotplugged USB sink was previously set as the default sink. */
+    char *configured_default_sink;
+    char *configured_default_source;
+
+    /* The effective default sink/source. If no sink or source is explicitly
+     * configured as the default, we pick the device that ranks highest
+     * according to the compare_sinks() and compare_sources() functions in
+     * core.c. pa_core_update_default_sink/source() has to be called whenever
+     * anything changes that might change the comparison results. */
     pa_sink *default_sink;
+    pa_source *default_source;
 
     pa_channel_map default_channel_map;
     pa_sample_spec default_sample_spec;
@@ -199,7 +213,9 @@ struct pa_core {
     bool disallow_exit:1;
     bool running_as_daemon:1;
     bool realtime_scheduling:1;
+    bool avoid_resampling:1;
     bool disable_remixing:1;
+    bool remixing_use_all_sink_channels:1;
     bool disable_lfe_remixing:1;
     bool deferred_volume:1;
 
@@ -222,6 +238,21 @@ enum {
 };
 
 pa_core* pa_core_new(pa_mainloop_api *m, bool shared, bool enable_memfd, size_t shm_size);
+
+void pa_core_set_configured_default_sink(pa_core *core, const char *sink);
+void pa_core_set_configured_default_source(pa_core *core, const char *source);
+
+/* These should be called whenever something changes that may affect the
+ * default sink or source choice.
+ *
+ * If the default source choice happens between two monitor sources, the
+ * monitored sinks are compared, so if the default sink changes, the default
+ * source may change too. However, pa_core_update_default_sink() calls
+ * pa_core_update_default_source() internally, so it's sufficient to only call
+ * pa_core_update_default_sink() when something happens that affects the sink
+ * ordering. */
+void pa_core_update_default_sink(pa_core *core);
+void pa_core_update_default_source(pa_core *core);
 
 /* Check whether no one is connected to this core */
 void pa_core_check_idle(pa_core *c);

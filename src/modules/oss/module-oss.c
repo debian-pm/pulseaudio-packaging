@@ -659,7 +659,7 @@ static int sink_process_msg(pa_msgobject *o, int code, void *data, int64_t offse
                     r = io_sink_get_latency(u);
             }
 
-            *((pa_usec_t*) data) = r;
+            *((int64_t*) data) = (int64_t)r;
 
             return 0;
         }
@@ -744,7 +744,7 @@ static int source_process_msg(pa_msgobject *o, int code, void *data, int64_t off
                     r = io_source_get_latency(u);
             }
 
-            *((pa_usec_t*) data) = r;
+            *((int64_t*) data) = (int64_t)r;
             return 0;
         }
 
@@ -1195,7 +1195,7 @@ int pa__init(pa_module*m) {
         goto fail;
     }
 
-    mode = (playback && record) ? O_RDWR : (playback ? O_WRONLY : (record ? O_RDONLY : 0));
+    mode = (playback && record) ? O_RDWR : (playback ? O_WRONLY : O_RDONLY);
 
     ss = m->core->default_sample_spec;
     map = m->core->default_channel_map;

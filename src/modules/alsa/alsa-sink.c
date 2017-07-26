@@ -88,6 +88,8 @@
 #define DEFAULT_REWIND_SAFEGUARD_BYTES (256U) /* 1.33ms @48kHz, we'll never rewind less than this */
 #define DEFAULT_REWIND_SAFEGUARD_USEC (1330) /* 1.33ms, depending on channels/rate/sample we may rewind more than 256 above */
 
+#define DEFAULT_WRITE_ITERATION_THRESHOLD 0.03 /* don't iterate write if < 3% of the buffer is available */
+
 struct userdata {
     pa_core *core;
     pa_module *module;
@@ -580,11 +582,18 @@ static int mmap_write(struct userdata *u, pa_usec_t *sleep_usec, bool polled, bo
             break;
         }
 
-        if (++j > 10) {
+        j++;
+
+        if (j > 10) {
 #ifdef DEBUG_TIMING
             pa_log_debug("Not filling up, because already too many iterations.");
 #endif
 
+            break;
+        } else if (j >= 2 && (n_bytes < (DEFAULT_WRITE_ITERATION_THRESHOLD * (u->hwbuf_size - u->hwbuf_unused)))) {
+#ifdef DEBUG_TIMING
+            pa_log_debug("Not filling up, because <%g%% available.", DEFAULT_WRITE_ITERATION_THRESHOLD * 100);
+#endif
             break;
         }
 
@@ -754,11 +763,18 @@ static int unix_write(struct userdata *u, pa_usec_t *sleep_usec, bool polled, bo
             break;
         }
 
-        if (++j > 10) {
+        j++;
+
+        if (j > 10) {
 #ifdef DEBUG_TIMING
             pa_log_debug("Not filling up, because already too many iterations.");
 #endif
 
+            break;
+        } else if (j >= 2 && (n_bytes < (DEFAULT_WRITE_ITERATION_THRESHOLD * (u->hwbuf_size - u->hwbuf_unused)))) {
+#ifdef DEBUG_TIMING
+            pa_log_debug("Not filling up, because <%g%% available.", DEFAULT_WRITE_ITERATION_THRESHOLD * 100);
+#endif
             break;
         }
 
@@ -892,8 +908,7 @@ static void update_smoother(struct userdata *u) {
     u->smoother_interval = PA_MIN (u->smoother_interval * 2, SMOOTHER_MAX_INTERVAL);
 }
 
-static pa_usec_t sink_get_latency(struct userdata *u) {
-    pa_usec_t r;
+static int64_t sink_get_latency(struct userdata *u) {
     int64_t delay;
     pa_usec_t now1, now2;
 
@@ -904,12 +919,10 @@ static pa_usec_t sink_get_latency(struct userdata *u) {
 
     delay = (int64_t) pa_bytes_to_usec(u->write_count, &u->sink->sample_spec) - (int64_t) now2;
 
-    r = delay >= 0 ? (pa_usec_t) delay : 0;
-
     if (u->memchunk.memblock)
-        r += pa_bytes_to_usec(u->memchunk.length, &u->sink->sample_spec);
+        delay += pa_bytes_to_usec(u->memchunk.length, &u->sink->sample_spec);
 
-    return r;
+    return delay;
 }
 
 static int build_pollfd(struct userdata *u) {
@@ -1150,12 +1163,12 @@ static int sink_process_msg(pa_msgobject *o, int code, void *data, int64_t offse
     switch (code) {
 
         case PA_SINK_MESSAGE_GET_LATENCY: {
-            pa_usec_t r = 0;
+            int64_t r = 0;
 
             if (u->pcm_handle)
                 r = sink_get_latency(u);
 
-            *((pa_usec_t*) data) = r;
+            *((int64_t*) data) = r;
 
             return 0;
         }

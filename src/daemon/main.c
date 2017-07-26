@@ -1036,7 +1036,9 @@ int main(int argc, char *argv[]) {
     c->resample_method = conf->resample_method;
     c->realtime_priority = conf->realtime_priority;
     c->realtime_scheduling = conf->realtime_scheduling;
+    c->avoid_resampling = conf->avoid_resampling;
     c->disable_remixing = conf->disable_remixing;
+    c->remixing_use_all_sink_channels = conf->remixing_use_all_sink_channels;
     c->disable_lfe_remixing = conf->disable_lfe_remixing;
     c->deferred_volume = conf->deferred_volume;
     c->running_as_daemon = conf->daemonize;

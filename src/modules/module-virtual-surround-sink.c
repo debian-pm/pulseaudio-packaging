@@ -51,6 +51,7 @@ PA_MODULE_USAGE(
         _("sink_name=<name for the sink> "
           "sink_properties=<properties for the sink> "
           "master=<name of sink to filter> "
+          "sink_master=<name of sink to filter> "
           "format=<sample format> "
           "rate=<sample rate> "
           "channels=<number of channels> "
@@ -58,9 +59,11 @@ PA_MODULE_USAGE(
           "use_volume_sharing=<yes or no> "
           "force_flat_volume=<yes or no> "
           "hrir=/path/to/left_hrir.wav "
+          "autoloaded=<set if this module is being loaded automatically> "
         ));
 
 #define MEMBLOCKQ_MAXLENGTH (16*1024*1024)
+#define DEFAULT_AUTOLOADED false
 
 struct userdata {
     pa_module *module;
@@ -87,12 +90,15 @@ struct userdata {
 
     float *input_buffer;
     int input_buffer_offset;
+
+    bool autoloaded;
 };
 
 static const char* const valid_modargs[] = {
     "sink_name",
     "sink_properties",
-    "master",
+    "master",  /* Will be deprecated. */
+    "sink_master",
     "format",
     "rate",
     "channels",
@@ -100,6 +106,7 @@ static const char* const valid_modargs[] = {
     "use_volume_sharing",
     "force_flat_volume",
     "hrir",
+    "autoloaded",
     NULL
 };
 
@@ -116,19 +123,31 @@ static int sink_process_msg_cb(pa_msgobject *o, int code, void *data, int64_t of
              * sink input is first shut down, the sink second. */
             if (!PA_SINK_IS_LINKED(u->sink->thread_info.state) ||
                 !PA_SINK_INPUT_IS_LINKED(u->sink_input->thread_info.state)) {
-                *((pa_usec_t*) data) = 0;
+                *((int64_t*) data) = 0;
                 return 0;
             }
 
-            *((pa_usec_t*) data) =
+            *((int64_t*) data) =
 
                 /* Get the latency of the master sink */
-                pa_sink_get_latency_within_thread(u->sink_input->sink) +
+                pa_sink_get_latency_within_thread(u->sink_input->sink, true) +
 
                 /* Add the latency internal to our sink input on top */
                 pa_bytes_to_usec(pa_memblockq_get_length(u->sink_input->thread_info.render_memblockq), &u->sink_input->sink->sample_spec);
 
             return 0;
+
+        case PA_SINK_MESSAGE_SET_STATE: {
+            pa_sink_state_t new_state = (pa_sink_state_t) PA_PTR_TO_UINT(data);
+
+            /* When set to running or idle for the first time, request a rewind
+             * of the master sink to make sure we are heard immediately */
+            if ((new_state == PA_SINK_IDLE || new_state == PA_SINK_RUNNING) && u->sink->thread_info.state == PA_SINK_INIT) {
+                pa_log_debug("Requesting rewind due to state change.");
+                pa_sink_input_request_rewind(u->sink_input, 0, false, true, true);
+            }
+            break;
+        }
     }
 
     return pa_sink_process_msg(o, code, data, offset, chunk);
@@ -226,6 +245,9 @@ static int sink_input_pop_cb(pa_sink_input *i, size_t nbytes, pa_memchunk *chunk
     pa_assert(chunk);
     pa_assert_se(u = i->userdata);
 
+    if (!PA_SINK_IS_LINKED(u->sink->thread_info.state))
+        return -1;
+
     /* Hmm, process any rewind request that might be queued up */
     pa_sink_process_rewind(u->sink, 0);
 
@@ -292,6 +314,10 @@ static void sink_input_process_rewind_cb(pa_sink_input *i, size_t nbytes) {
 
     pa_sink_input_assert_ref(i);
     pa_assert_se(u = i->userdata);
+
+    /* If the sink is not yet linked, there is nothing to rewind */
+    if (!PA_SINK_IS_LINKED(u->sink->thread_info.state))
+        return;
 
     if (u->sink->thread_info.rewind_nbytes > 0) {
         size_t max_rewrite;
@@ -363,7 +389,8 @@ static void sink_input_detach_cb(pa_sink_input *i) {
     pa_sink_input_assert_ref(i);
     pa_assert_se(u = i->userdata);
 
-    pa_sink_detach_within_thread(u->sink);
+    if (PA_SINK_IS_LINKED(u->sink->thread_info.state))
+        pa_sink_detach_within_thread(u->sink);
 
     pa_sink_set_rtpoll(u->sink, NULL);
 }
@@ -386,7 +413,8 @@ static void sink_input_attach_cb(pa_sink_input *i) {
      * https://bugs.freedesktop.org/show_bug.cgi?id=53709 */
     pa_sink_set_max_rewind_within_thread(u->sink, pa_sink_input_get_max_rewind(i) * u->sink_fs / u->fs);
 
-    pa_sink_attach_within_thread(u->sink);
+    if (PA_SINK_IS_LINKED(u->sink->thread_info.state))
+        pa_sink_attach_within_thread(u->sink);
 }
 
 /* Called from main context */
@@ -396,11 +424,12 @@ static void sink_input_kill_cb(pa_sink_input *i) {
     pa_sink_input_assert_ref(i);
     pa_assert_se(u = i->userdata);
 
-    /* The order here matters! We first kill the sink input, followed
-     * by the sink. That means the sink callbacks must be protected
-     * against an unconnected sink input! */
-    pa_sink_input_unlink(u->sink_input);
+    /* The order here matters! We first kill the sink so that streams
+     * can properly be moved away while the sink input is still connected
+     * to the master. */
+    pa_sink_input_cork(u->sink_input, true);
     pa_sink_unlink(u->sink);
+    pa_sink_input_unlink(u->sink_input);
 
     pa_sink_input_unref(u->sink_input);
     u->sink_input = NULL;
@@ -411,20 +440,17 @@ static void sink_input_kill_cb(pa_sink_input *i) {
     pa_module_unload_request(u->module, true);
 }
 
-/* Called from IO thread context */
-static void sink_input_state_change_cb(pa_sink_input *i, pa_sink_input_state_t state) {
+/* Called from main context */
+static bool sink_input_may_move_to_cb(pa_sink_input *i, pa_sink *dest) {
     struct userdata *u;
 
     pa_sink_input_assert_ref(i);
     pa_assert_se(u = i->userdata);
 
-    /* If we are added for the first time, ask for a rewinding so that
-     * we are heard right-away. */
-    if (PA_SINK_INPUT_IS_LINKED(state) &&
-        i->thread_info.state == PA_SINK_INPUT_INIT) {
-        pa_log_debug("Requesting rewind due to state change.");
-        pa_sink_input_request_rewind(i, 0, false, true, true);
-    }
+    if (u->autoloaded)
+        return false;
+
+    return u->sink != dest;
 }
 
 /* Called from main context */
@@ -561,7 +587,8 @@ int pa__init(pa_module*m) {
     pa_sample_spec ss, sink_input_ss;
     pa_channel_map map, sink_input_map;
     pa_modargs *ma;
-    pa_sink *master=NULL;
+    const char *master_name;
+    pa_sink *master = NULL;
     pa_sink_input_new_data sink_input_data;
     pa_sink_new_data sink_data;
     bool use_volume_sharing = true;
@@ -591,8 +618,17 @@ int pa__init(pa_module*m) {
         goto fail;
     }
 
-    if (!(master = pa_namereg_get(m->core, pa_modargs_get_value(ma, "master", NULL), PA_NAMEREG_SINK))) {
-        pa_log("Master sink not found");
+    master_name = pa_modargs_get_value(ma, "sink_master", NULL);
+    if (!master_name) {
+        master_name = pa_modargs_get_value(ma, "master", NULL);
+        if (master_name)
+            pa_log_warn("The 'master' module argument is deprecated and may be removed in the future, "
+                        "please use the 'sink_master' argument instead.");
+    }
+
+    master = pa_namereg_get(m->core, master_name, PA_NAMEREG_SINK);
+    if (!master) {
+        pa_log("Master sink not found.");
         goto fail;
     }
 
@@ -672,6 +708,12 @@ int pa__init(pa_module*m) {
         goto fail;
     }
 
+    u->autoloaded = DEFAULT_AUTOLOADED;
+    if (pa_modargs_get_value_boolean(ma, "autoloaded", &u->autoloaded) < 0) {
+        pa_log("Failed to parse autoloaded value");
+        goto fail;
+    }
+
     if ((u->auto_desc = !pa_proplist_contains(sink_data.proplist, PA_PROP_DEVICE_DESCRIPTION))) {
         const char *z;
 
@@ -714,6 +756,7 @@ int pa__init(pa_module*m) {
     pa_proplist_sets(sink_input_data.proplist, PA_PROP_MEDIA_ROLE, "filter");
     pa_sink_input_new_data_set_sample_spec(&sink_input_data, &sink_input_ss);
     pa_sink_input_new_data_set_channel_map(&sink_input_data, &sink_input_map);
+    sink_input_data.flags |= PA_SINK_INPUT_START_CORKED;
 
     pa_sink_input_new(&u->sink_input, m->core, &sink_input_data);
     pa_sink_input_new_data_done(&sink_input_data);
@@ -730,7 +773,7 @@ int pa__init(pa_module*m) {
     u->sink_input->kill = sink_input_kill_cb;
     u->sink_input->attach = sink_input_attach_cb;
     u->sink_input->detach = sink_input_detach_cb;
-    u->sink_input->state_change = sink_input_state_change_cb;
+    u->sink_input->may_move_to = sink_input_may_move_to_cb;
     u->sink_input->moving = sink_input_moving_cb;
     u->sink_input->volume_changed = use_volume_sharing ? NULL : sink_input_volume_changed_cb;
     u->sink_input->mute_changed = sink_input_mute_changed_cb;
@@ -828,8 +871,12 @@ int pa__init(pa_module*m) {
     u->input_buffer = pa_xmalloc0(u->hrir_samples * u->sink_fs);
     u->input_buffer_offset = 0;
 
-    pa_sink_put(u->sink);
+    /* The order here is important. The input must be put first,
+     * otherwise streams might attach to the sink before the sink
+     * input is attached to the master. */
     pa_sink_input_put(u->sink_input);
+    pa_sink_put(u->sink);
+    pa_sink_input_cork(u->sink_input, false);
 
     pa_modargs_free(ma);
     return 0;
@@ -870,13 +917,15 @@ void pa__done(pa_module*m) {
      * destruction order! */
 
     if (u->sink_input)
-        pa_sink_input_unlink(u->sink_input);
+        pa_sink_input_cork(u->sink_input, true);
 
     if (u->sink)
         pa_sink_unlink(u->sink);
 
-    if (u->sink_input)
+    if (u->sink_input) {
+        pa_sink_input_unlink(u->sink_input);
         pa_sink_input_unref(u->sink_input);
+    }
 
     if (u->sink)
         pa_sink_unref(u->sink);

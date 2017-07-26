@@ -61,10 +61,10 @@ Move the specified playback stream (identified by its numerical index) to the sp
 Move the specified recording stream (identified by its numerical index) to the specified source (identified by its symbolic name or numerical index).
 .TP
 \fBsuspend-sink\f1 \fISINK\f1 \fI1|0\f1
-Suspend or resume the specified sink (which my be specified either by its symbolic name, or by its numeric index), depending whether 1 (suspend) or 0 (resume) is passed as last argument. Suspending a sink will pause all playback. Depending on the module implementing the sink this might have the effect that the underlying device is closed, making it available for other applications to use. The exact behaviour depends on the module.
+Suspend or resume the specified sink (which may be specified either by its symbolic name, or by its numeric index), depending whether 1 (suspend) or 0 (resume) is passed as last argument. Suspending a sink will pause all playback. Depending on the module implementing the sink this might have the effect that the underlying device is closed, making it available for other applications to use. The exact behaviour depends on the module.
 .TP
 \fBsuspend-source\f1 \fISOURCE\f1 \fI1|0\f1
-Suspend or resume the specified source (which my be specified either by its symbolic name, or by its numeric index), depending whether 1 (suspend) or 0 (resume) is passed as last argument. Suspending a source will pause all capturing. Depending on the module implementing the source this might have the effect that the underlying device is closed, making it available for other applications to use. The exact behaviour depends on the module.
+Suspend or resume the specified source (which may be specified either by its symbolic name, or by its numeric index), depending whether 1 (suspend) or 0 (resume) is passed as last argument. Suspending a source will pause all capturing. Depending on the module implementing the source this might have the effect that the underlying device is closed, making it available for other applications to use. The exact behaviour depends on the module.
 .TP
 \fBset-card-profile\f1 \fICARD\f1 \fIPROFILE\f1
 Set the specified card (identified by its symbolic name or numerical index) to the specified profile (identified by its symbolic name).
@@ -105,7 +105,7 @@ Set the mute status of the specified source (identified by its symbolic name or 
 \fBset-sink-input-mute\f1 \fIINPUT\f1 \fI1|0|toggle\f1
 Set the mute status of the specified sink input (identified by its numerical index).
 .TP
-\fBset-source-output-mute\f1 \fIINPUT\f1 \fI1|0|toggle\f1
+\fBset-source-output-mute\f1 \fIOUTPUT\f1 \fI1|0|toggle\f1
 Set the mute status of the specified source output (identified by its numerical index).
 .TP
 \fBset-sink-formats\f1 \fISINK\f1 \fIFORMATS\f1
