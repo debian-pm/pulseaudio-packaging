@@ -1,8 +1,9 @@
-pulseaudio (10.99.1-1) UNRELEASED; urgency=medium
+pulseaudio (10.99.1-1) experimental; urgency=medium
 
   * New upstream release candidate 10.99.1
+  * Bump Standards-Version (no changes)
 
- -- Felipe Sateler <fsateler@debian.org>  Wed, 26 Jul 2017 09:16:00 -0400
+ -- Felipe Sateler <fsateler@debian.org>  Wed, 26 Jul 2017 09:46:27 -0400
 
 pulseaudio (10.0-2) unstable; urgency=medium
 
