@@ -1417,7 +1417,7 @@ static int sink_input_process_msg(pa_msgobject *o, int code, void *userdata, int
             s->read_index = pa_memblockq_get_read_index(s->memblockq);
             s->write_index = pa_memblockq_get_write_index(s->memblockq);
             s->render_memblockq_length = pa_memblockq_get_length(s->sink_input->thread_info.render_memblockq);
-            s->current_sink_latency = pa_sink_get_latency_within_thread(s->sink_input->sink);
+            s->current_sink_latency = pa_sink_get_latency_within_thread(s->sink_input->sink, false);
             s->underrun_for = s->sink_input->thread_info.underrun_for;
             s->playing_for = s->sink_input->thread_info.playing_for;
 
@@ -1686,8 +1686,8 @@ static int source_output_process_msg(pa_msgobject *_o, int code, void *userdata,
     switch (code) {
         case SOURCE_OUTPUT_MESSAGE_UPDATE_LATENCY:
             /* Atomically get a snapshot of all timing parameters... */
-            s->current_monitor_latency = o->source->monitor_of ? pa_sink_get_latency_within_thread(o->source->monitor_of) : 0;
-            s->current_source_latency = pa_source_get_latency_within_thread(o->source);
+            s->current_monitor_latency = o->source->monitor_of ? pa_sink_get_latency_within_thread(o->source->monitor_of, false) : 0;
+            s->current_source_latency = pa_source_get_latency_within_thread(o->source, false);
             s->on_the_fly_snapshot = pa_atomic_load(&s->on_the_fly);
             return 0;
     }
@@ -2922,7 +2922,7 @@ static void command_get_record_latency(pa_pdispatch *pd, uint32_t command, uint3
     pa_tagstruct_put_usec(reply, s->current_monitor_latency);
     pa_tagstruct_put_usec(reply,
                           s->current_source_latency +
-                          pa_bytes_to_usec(s->on_the_fly_snapshot, &s->source_output->source->sample_spec));
+                          pa_bytes_to_usec(s->on_the_fly_snapshot, &s->source_output->sample_spec));
     pa_tagstruct_put_boolean(reply,
                              pa_source_get_state(s->source_output->source) == PA_SOURCE_RUNNING &&
                              pa_source_output_get_state(s->source_output) == PA_SOURCE_OUTPUT_RUNNING);
@@ -3637,10 +3637,9 @@ static void command_get_info_list(pa_pdispatch *pd, uint32_t command, uint32_t t
 static void command_get_server_info(pa_pdispatch *pd, uint32_t command, uint32_t tag, pa_tagstruct *t, void *userdata) {
     pa_native_connection *c = PA_NATIVE_CONNECTION(userdata);
     pa_tagstruct *reply;
-    pa_sink *def_sink;
-    pa_source *def_source;
     pa_sample_spec fixed_ss;
     char *h, *u;
+    pa_core *core;
 
     pa_native_connection_assert_ref(c);
     pa_assert(t);
@@ -3664,18 +3663,18 @@ static void command_get_server_info(pa_pdispatch *pd, uint32_t command, uint32_t
     pa_tagstruct_puts(reply, h);
     pa_xfree(h);
 
-    fixup_sample_spec(c, &fixed_ss, &c->protocol->core->default_sample_spec);
+    core = c->protocol->core;
+
+    fixup_sample_spec(c, &fixed_ss, &core->default_sample_spec);
     pa_tagstruct_put_sample_spec(reply, &fixed_ss);
 
-    def_sink = pa_namereg_get_default_sink(c->protocol->core);
-    pa_tagstruct_puts(reply, def_sink ? def_sink->name : NULL);
-    def_source = pa_namereg_get_default_source(c->protocol->core);
-    pa_tagstruct_puts(reply, def_source ? def_source->name : NULL);
+    pa_tagstruct_puts(reply, core->default_sink ? core->default_sink->name : NULL);
+    pa_tagstruct_puts(reply, core->default_source ? core->default_source->name : NULL);
 
     pa_tagstruct_putu32(reply, c->protocol->core->cookie);
 
     if (c->version >= 15)
-        pa_tagstruct_put_channel_map(reply, &c->protocol->core->default_channel_map);
+        pa_tagstruct_put_channel_map(reply, &core->default_channel_map);
 
     pa_pstream_send_tagstruct(c->pstream, reply);
 }
@@ -4347,7 +4346,7 @@ static void command_set_default_sink_or_source(pa_pdispatch *pd, uint32_t comman
         source = pa_namereg_get(c->protocol->core, s, PA_NAMEREG_SOURCE);
         CHECK_VALIDITY(c->pstream, source, tag, PA_ERR_NOENTITY);
 
-        pa_namereg_set_default_source(c->protocol->core, source);
+        pa_core_set_configured_default_source(c->protocol->core, source->name);
     } else {
         pa_sink *sink;
         pa_assert(command == PA_COMMAND_SET_DEFAULT_SINK);
@@ -4355,7 +4354,7 @@ static void command_set_default_sink_or_source(pa_pdispatch *pd, uint32_t comman
         sink = pa_namereg_get(c->protocol->core, s, PA_NAMEREG_SINK);
         CHECK_VALIDITY(c->pstream, sink, tag, PA_ERR_NOENTITY);
 
-        pa_namereg_set_default_sink(c->protocol->core, sink);
+        pa_core_set_configured_default_sink(c->protocol->core, sink->name);
     }
 
     pa_pstream_send_simple_ack(c->pstream, tag);
@@ -4720,6 +4719,11 @@ static void command_set_card_profile(pa_pdispatch *pd, uint32_t command, uint32_
     profile = pa_hashmap_get(card->profiles, profile_name);
 
     CHECK_VALIDITY(c->pstream, profile, tag, PA_ERR_NOENTITY);
+
+    pa_log_info("Application \"%s\" requests card profile change. card = %s, profile = %s",
+                pa_strnull(pa_proplist_gets(c->client->proplist, PA_PROP_APPLICATION_NAME)),
+                card->name,
+                profile->name);
 
     if ((ret = pa_card_set_profile(card, profile, true)) < 0) {
         pa_pstream_send_error(c->pstream, tag, -ret);

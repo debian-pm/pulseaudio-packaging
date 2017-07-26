@@ -31,10 +31,17 @@
 #include <sys/ioctl.h>
 #include <sys/types.h>
 
+#ifdef HAVE_POLL_H
+#include <poll.h>
+#endif
+
 #include <signal.h>
 #include <stropts.h>
-#include <sys/conf.h>
 #include <sys/audio.h>
+
+#ifdef HAVE_SYS_CONF_H
+#include <sys/conf.h>
+#endif
 
 #include <pulse/mainloop-signal.h>
 #include <pulse/xmalloc.h>
@@ -385,7 +392,7 @@ static int sink_process_msg(pa_msgobject *o, int code, void *data, int64_t offse
     switch (code) {
 
         case PA_SINK_MESSAGE_GET_LATENCY:
-            *((pa_usec_t*) data) = sink_get_latency(u, &PA_SINK(o)->sample_spec);
+            *((int64_t*) data) = sink_get_latency(u, &PA_SINK(o)->sample_spec);
             return 0;
 
         case PA_SINK_MESSAGE_SET_STATE:

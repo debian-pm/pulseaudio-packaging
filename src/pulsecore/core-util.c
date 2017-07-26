@@ -1062,7 +1062,7 @@ int pa_parse_volume(const char *v, pa_volume_t *volume) {
     return 0;
 }
 
-/* Split the specified string wherever one of the strings in delimiter
+/* Split the specified string wherever one of the characters in delimiter
  * occurs. Each time it is called returns a newly allocated string
  * with pa_xmalloc(). The variable state points to, should be
  * initialized to NULL before the first call. */
@@ -1082,7 +1082,7 @@ char *pa_split(const char *c, const char *delimiter, const char**state) {
     return pa_xstrndup(current, l);
 }
 
-/* Split the specified string wherever one of the strings in delimiter
+/* Split the specified string wherever one of the characters in delimiter
  * occurs. Each time it is called returns a pointer to the substring within the
  * string and the length in 'n'. Note that the resultant string cannot be used
  * as-is without the length parameter, since it is merely pointing to a point
@@ -1119,6 +1119,25 @@ char *pa_split_spaces(const char *c, const char **state) {
     *state = current+l;
 
     return pa_xstrndup(current, l);
+}
+
+/* Similar to pa_split_spaces, except this returns a string in-place.
+   Returned string is generally not NULL-terminated.
+   See pa_split_in_place(). */
+const char *pa_split_spaces_in_place(const char *c, int *n, const char **state) {
+    const char *current = *state ? *state : c;
+    size_t l;
+
+    if (!*current || *c == 0)
+        return NULL;
+
+    current += strspn(current, WHITESPACE);
+    l = strcspn(current, WHITESPACE);
+
+    *state = current+l;
+
+    *n = l;
+    return current;
 }
 
 PA_STATIC_TLS_DECLARE(signame, pa_xfree);
@@ -2981,21 +3000,38 @@ bool pa_in_system_mode(void) {
     return !!atoi(e);
 }
 
-/* Checks a whitespace-separated list of words in haystack for needle */
-bool pa_str_in_list_spaces(const char *haystack, const char *needle) {
+/* Checks a delimiters-separated list of words in haystack for needle */
+bool pa_str_in_list(const char *haystack, const char *delimiters, const char *needle) {
     char *s;
     const char *state = NULL;
 
     if (!haystack || !needle)
         return false;
 
-    while ((s = pa_split_spaces(haystack, &state))) {
+    while ((s = pa_split(haystack, delimiters, &state))) {
         if (pa_streq(needle, s)) {
             pa_xfree(s);
             return true;
         }
 
         pa_xfree(s);
+    }
+
+    return false;
+}
+
+/* Checks a whitespace-separated list of words in haystack for needle */
+bool pa_str_in_list_spaces(const char *haystack, const char *needle) {
+    const char *s;
+    int n;
+    const char *state = NULL;
+
+    if (!haystack || !needle)
+        return false;
+
+    while ((s = pa_split_spaces_in_place(haystack, &n, &state))) {
+        if (pa_strneq(needle, s, n))
+            return true;
     }
 
     return false;

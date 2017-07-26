@@ -31,6 +31,7 @@
 #include <pulse/rtclock.h>
 #include <pulse/sample.h>
 #include <pulse/timeval.h>
+#include <pulse/utf8.h>
 #include <pulse/xmalloc.h>
 
 #include <pulsecore/i18n.h>
@@ -430,22 +431,22 @@ static int sink_process_msg(pa_msgobject *o, int code, void *data, int64_t offse
         case PA_SINK_MESSAGE_GET_LATENCY: {
 
             if (u->read_smoother) {
-                pa_usec_t wi, ri;
+                int64_t wi, ri;
 
                 ri = pa_smoother_get(u->read_smoother, pa_rtclock_now());
                 wi = pa_bytes_to_usec(u->write_index + u->write_block_size, &u->sample_spec);
 
-                *((pa_usec_t*) data) = wi > ri ? wi - ri : 0;
+                *((int64_t*) data) = wi - ri;
             } else {
-                pa_usec_t ri, wi;
+                int64_t ri, wi;
 
                 ri = pa_rtclock_now() - u->started_at;
                 wi = pa_bytes_to_usec(u->write_index, &u->sample_spec);
 
-                *((pa_usec_t*) data) = wi > ri ? wi - ri : 0;
+                *((int64_t*) data) = wi - ri;
             }
 
-            *((pa_usec_t*) data) += u->sink->thread_info.fixed_latency;
+            *((int64_t*) data) += u->sink->thread_info.fixed_latency;
             return 0;
         }
     }
@@ -507,15 +508,15 @@ static int source_process_msg(pa_msgobject *o, int code, void *data, int64_t off
             break;
 
         case PA_SOURCE_MESSAGE_GET_LATENCY: {
-            pa_usec_t wi, ri;
+            int64_t wi, ri;
 
             if (u->read_smoother) {
                 wi = pa_smoother_get(u->read_smoother, pa_rtclock_now());
                 ri = pa_bytes_to_usec(u->read_index, &u->sample_spec);
 
-                *((pa_usec_t*) data) = (wi > ri ? wi - ri : 0) + u->source->thread_info.fixed_latency;
+                *((int64_t*) data) = wi - ri + u->source->thread_info.fixed_latency;
             } else
-                *((pa_usec_t*) data) = 0;
+                *((int64_t*) data) = 0;
 
             return 0;
         }
@@ -2280,7 +2281,7 @@ static int add_card(struct userdata *u) {
     data.driver = __FILE__;
     data.module = u->module;
 
-    n = pa_bluez4_cleanup_name(device->alias);
+    n = pa_utf8_filter(device->alias);
     pa_proplist_sets(data.proplist, PA_PROP_DEVICE_DESCRIPTION, n);
     pa_xfree(n);
     pa_proplist_sets(data.proplist, PA_PROP_DEVICE_STRING, device->address);

@@ -44,11 +44,11 @@ AC_SUBST(PA_PROTOCOL_VERSION, 32)
 
 # The stable ABI for client applications, for the version info x:y:z
 # always will hold y=z
-AC_SUBST(LIBPULSE_VERSION_INFO, [20:1:20])
+AC_SUBST(LIBPULSE_VERSION_INFO, [20:2:20])
 
 # A simplified, synchronous, ABI-stable interface for client
 # applications, for the version info x:y:z always will hold y=z
-AC_SUBST(LIBPULSE_SIMPLE_VERSION_INFO, [1:0:1])
+AC_SUBST(LIBPULSE_SIMPLE_VERSION_INFO, [1:1:1])
 
 # The ABI-stable GLib adapter for client applications, for the version
 # info x:y:z always will hold y=z
@@ -436,7 +436,7 @@ AM_CONDITIONAL([HAVE_EVDEV], [test "x$HAVE_EVDEV" = "x1"])
 AC_CHECK_HEADERS_ONCE([sys/prctl.h])
 
 # Solaris
-AC_CHECK_HEADERS_ONCE([sys/filio.h])
+AC_CHECK_HEADERS_ONCE([sys/conf.h sys/filio.h])
 
 # Windows
 AC_CHECK_HEADERS_ONCE([windows.h winsock2.h ws2tcpip.h])
@@ -500,20 +500,6 @@ AC_CACHE_CHECK([whether $CC knows _Bool],
     ])
 
 AS_IF([test "$pulseaudio_cv__Bool" = "yes"], AC_DEFINE([HAVE_STD_BOOL], 1, [Have _Bool.]))
-
-
-#### Thread support ####
-
-AX_TLS
-AS_IF([test "$ac_cv_tls" = "__thread"],
-    AC_DEFINE([SUPPORT_TLS___THREAD], 1, [Define this if the compiler supports __thread for Thread-Local Storage]))
-
-# Win32 build breaks with win32 pthread installed
-AS_IF([test "x$os_is_win32" != "x1"],
-  [AX_PTHREAD])
-
-AS_IF([test "x$ax_pthread_ok" = "xyes"],
-    AC_DEFINE([_POSIX_PTHREAD_SEMANTICS], 1, [Needed on Solaris]))
 
 
 #### Check for libs ####
@@ -773,6 +759,9 @@ AC_ARG_ENABLE([oss-output],
 AC_ARG_ENABLE([oss-wrapper],
     AS_HELP_STRING([--disable-oss-wrapper],[Disable optional OSS wrapper support]))
 
+AC_ARG_WITH([pulsedsp-location],
+    AS_HELP_STRING([--with-pulsedsp-location],[Specify location where OSS wrapper will be installed]))
+
 AS_IF([test "x$enable_oss_output" != "xno" -o "x$enable_oss_wrapper" != "xno"],
     [AC_CHECK_HEADERS([sys/soundcard.h], HAVE_OSS=1, HAVE_OSS=0)],
     HAVE_OSS=0)
@@ -788,7 +777,12 @@ AS_IF([test "x$enable_oss_wrapper" != "xno"],
     [AS_IF([test "x$HAVE_OSS" = "x1"], HAVE_OSS_WRAPPER=1, HAVE_OSS_WRAPPER=0)],
     HAVE_OSS_WRAPPER=0)
 
+AS_IF([test "x$with_pulsedsp_location" != "x"],
+    [PULSEDSP_LOCATION="$with_pulsedsp_location"],
+    [PULSEDSP_LOCATION="\$(pkglibdir)"])
+
 AC_SUBST(HAVE_OSS_OUTPUT)
+AC_SUBST(PULSEDSP_LOCATION)
 AM_CONDITIONAL([HAVE_OSS_OUTPUT], [test "x$HAVE_OSS_OUTPUT" = "x1"])
 AM_CONDITIONAL([HAVE_OSS_WRAPPER], [test "x$HAVE_OSS_WRAPPER" = "x1"])
 AS_IF([test "x$HAVE_OSS_OUTPUT" = "x1"], AC_DEFINE([HAVE_OSS_OUTPUT], 1, [Have OSS output?]))
@@ -1403,6 +1397,20 @@ AC_ARG_ENABLE([adrian-aec],
 AS_IF([test "x$enable_adrian_aec" != "xno"],
     [HAVE_ADRIAN_EC=1])
 AM_CONDITIONAL([HAVE_ADRIAN_EC], [test "x$HAVE_ADRIAN_EC" = "x1"])
+
+
+#### Thread support ####
+
+AX_TLS
+AS_IF([test "$ac_cv_tls" = "__thread"],
+    AC_DEFINE([SUPPORT_TLS___THREAD], 1, [Define this if the compiler supports __thread for Thread-Local Storage]))
+
+# Win32 build breaks with win32 pthread installed
+AS_IF([test "x$os_is_win32" != "x1"],
+  [AX_PTHREAD])
+
+AS_IF([test "x$ax_pthread_ok" = "xyes"],
+    AC_DEFINE([_POSIX_PTHREAD_SEMANTICS], 1, [Needed on Solaris]))
 
 
 

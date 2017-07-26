@@ -785,8 +785,6 @@ libpulsecommon_@PA_MAJORMINOR@_la_SOURCES += \
 		pulsecore/mutex-posix.c pulsecore/mutex.h \
 		pulsecore/thread-posix.c pulsecore/thread.h \
 		pulsecore/semaphore-osx.c pulsecore/semaphore.h
-libpulsecommon_@PA_MAJORMINOR@_la_CFLAGS += "-I/Developer/Headers/FlatCarbon/"
-#libpulsecommon_@PA_MAJORMINOR@_la_LDFLAGS += "-framework CoreServices"
 else !OS_IS_DARWIN
 libpulsecommon_@PA_MAJORMINOR@_la_SOURCES += \
 		pulsecore/mutex-posix.c pulsecore/mutex.h \
@@ -923,7 +921,7 @@ padsplib_LTLIBRARIES = libpulsedsp.la
 bin_SCRIPTS += padsp
 
 edit = @SED@ \
-       -e "s|@pkglibdir[@]|$(pkglibdir)|g"
+       -e 's|@PULSEDSP_LOCATION[@]|$(PULSEDSP_LOCATION)|g'
 
 padsp: utils/padsp.in
 	$(edit) $< > $@
@@ -1154,8 +1152,12 @@ librtp_la_LDFLAGS = $(AM_LDFLAGS) $(AM_LIBLDFLAGS) -avoid-version
 librtp_la_LIBADD = $(AM_LIBADD) libpulsecore-@PA_MAJORMINOR@.la libpulsecommon-@PA_MAJORMINOR@.la libpulse.la
 
 libraop_la_SOURCES = \
-        modules/raop/raop_client.c modules/raop/raop_client.h \
-        modules/raop/base64.c modules/raop/base64.h
+        modules/raop/raop-util.c modules/raop/raop-util.h \
+        modules/raop/raop-crypto.c modules/raop/raop-crypto.h \
+        modules/raop/raop-packet-buffer.h modules/raop/raop-packet-buffer.c \
+        modules/raop/raop-client.c modules/raop/raop-client.h \
+        modules/raop/raop-sink.c modules/raop/raop-sink.h
+
 libraop_la_CFLAGS = $(AM_CFLAGS) $(OPENSSL_CFLAGS) -I$(top_srcdir)/src/modules/rtp
 libraop_la_LDFLAGS = $(AM_LDFLAGS) $(AM_LIBLDFLAGS) -avoid-version
 libraop_la_LIBADD = $(AM_LIBADD) $(OPENSSL_LIBS) libpulsecore-@PA_MAJORMINOR@.la librtp.la libpulsecommon-@PA_MAJORMINOR@.la libpulse.la

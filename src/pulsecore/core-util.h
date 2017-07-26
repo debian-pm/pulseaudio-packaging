@@ -109,9 +109,10 @@ static inline const char *pa_strna(const char *x) {
     return x ? x : "n/a";
 }
 
-char *pa_split(const char *c, const char*delimiters, const char **state);
-const char *pa_split_in_place(const char *c, const char*delimiters, int *n, const char **state);
+char *pa_split(const char *c, const char *delimiters, const char **state);
+const char *pa_split_in_place(const char *c, const char *delimiters, int *n, const char **state);
 char *pa_split_spaces(const char *c, const char **state);
+const char *pa_split_spaces_in_place(const char *c, int *n, const char **state);
 
 char *pa_strip_nl(char *s);
 char *pa_strip(char *s);
@@ -219,6 +220,7 @@ void pa_unset_env_recorded(void);
 bool pa_in_system_mode(void);
 
 #define pa_streq(a,b) (!strcmp((a),(b)))
+#define pa_strneq(a,b,n) (!strncmp((a),(b),(n)))
 
 /* Like pa_streq, but does not blow up on NULL pointers. */
 static inline bool pa_safe_streq(const char *a, const char *b) {
@@ -228,6 +230,7 @@ static inline bool pa_safe_streq(const char *a, const char *b) {
 }
 
 bool pa_str_in_list_spaces(const char *needle, const char *haystack);
+bool pa_str_in_list(const char *haystack, const char *delimiters, const char *needle);
 
 char *pa_get_host_name_malloc(void);
 char *pa_get_user_name_malloc(void);

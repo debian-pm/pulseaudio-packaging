@@ -792,7 +792,7 @@ static void register_endpoint(pa_bluez4_discovery *y, const char *path, const ch
 
     dbus_message_iter_init_append(m, &i);
 
-    dbus_message_iter_append_basic(&i, DBUS_TYPE_OBJECT_PATH, &endpoint);
+    pa_assert_se(dbus_message_iter_append_basic(&i, DBUS_TYPE_OBJECT_PATH, &endpoint));
 
     dbus_message_iter_open_container(&i, DBUS_TYPE_ARRAY, DBUS_DICT_ENTRY_BEGIN_CHAR_AS_STRING
                                     DBUS_TYPE_STRING_AS_STRING DBUS_TYPE_VARIANT_AS_STRING DBUS_DICT_ENTRY_END_CHAR_AS_STRING,
@@ -1116,6 +1116,8 @@ int pa_bluez4_transport_acquire(pa_bluez4_transport *t, bool optional, size_t *i
     pa_assert_se(m = dbus_message_new_method_call(t->owner, t->path, "org.bluez.MediaTransport", "Acquire"));
     pa_assert_se(dbus_message_append_args(m, DBUS_TYPE_STRING, &accesstype, DBUS_TYPE_INVALID));
     r = dbus_connection_send_with_reply_and_block(pa_dbus_connection_get(t->device->discovery->connection), m, -1, &err);
+    dbus_message_unref(m);
+    m = NULL;
 
     if (!r) {
         dbus_error_free(&err);
@@ -1143,7 +1145,7 @@ fail:
 
 void pa_bluez4_transport_release(pa_bluez4_transport *t) {
     const char *accesstype = "rw";
-    DBusMessage *m;
+    DBusMessage *m, *r;
     DBusError err;
 
     pa_assert(t);
@@ -1154,7 +1156,13 @@ void pa_bluez4_transport_release(pa_bluez4_transport *t) {
 
     pa_assert_se(m = dbus_message_new_method_call(t->owner, t->path, "org.bluez.MediaTransport", "Release"));
     pa_assert_se(dbus_message_append_args(m, DBUS_TYPE_STRING, &accesstype, DBUS_TYPE_INVALID));
-    dbus_connection_send_with_reply_and_block(pa_dbus_connection_get(t->device->discovery->connection), m, -1, &err);
+    r = dbus_connection_send_with_reply_and_block(pa_dbus_connection_get(t->device->discovery->connection), m, -1, &err);
+    dbus_message_unref(m);
+    m = NULL;
+    if (r) {
+        dbus_message_unref(r);
+        r = NULL;
+    }
 
     if (dbus_error_is_set(&err)) {
         pa_log("Failed to release transport %s: %s", t->path, err.message);
@@ -1175,7 +1183,7 @@ static void set_property(pa_bluez4_discovery *y, const char *bus, const char *pa
 
     pa_assert_se(m = dbus_message_new_method_call(bus, path, interface, "SetProperty"));
     dbus_message_iter_init_append(m, &i);
-    dbus_message_iter_append_basic(&i, DBUS_TYPE_STRING, &prop_name);
+    pa_assert_se(dbus_message_iter_append_basic(&i, DBUS_TYPE_STRING, &prop_name));
     pa_dbus_append_basic_variant(&i, prop_type, prop_value);
 
     dbus_message_set_no_reply(m, true);
@@ -1840,35 +1848,4 @@ const char *pa_bluez4_form_factor_to_string(pa_bluez4_form_factor_t ff) {
     }
 
     pa_assert_not_reached();
-}
-
-char *pa_bluez4_cleanup_name(const char *name) {
-    char *t, *s, *d;
-    bool space = false;
-
-    pa_assert(name);
-
-    while ((*name >= 1 && *name <= 32) || *name >= 127)
-        name++;
-
-    t = pa_xstrdup(name);
-
-    for (s = d = t; *s; s++) {
-
-        if (*s <= 32 || *s >= 127 || *s == '_') {
-            space = true;
-            continue;
-        }
-
-        if (space) {
-            *(d++) = ' ';
-            space = false;
-        }
-
-        *(d++) = *s;
-    }
-
-    *d = 0;
-
-    return t;
 }
