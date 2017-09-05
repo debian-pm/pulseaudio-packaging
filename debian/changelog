@@ -1,8 +1,11 @@
-pulseaudio (11.0-1) UNRELEASED; urgency=medium
+pulseaudio (11.0-1) unstable; urgency=medium
 
   * New upstream version 11.0
+  * Bump Standards-Version
+  * Drop Conflicts/Replaces against old packages.
+    Stretch has version 10 so all of the versions are already satisfied
 
- -- Felipe Sateler <fsateler@debian.org>  Tue, 05 Sep 2017 19:44:45 -0300
+ -- Felipe Sateler <fsateler@debian.org>  Tue, 05 Sep 2017 21:02:12 -0300
 
 pulseaudio (10.99.1-1) experimental; urgency=medium
 
