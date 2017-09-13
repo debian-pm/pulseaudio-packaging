@@ -1,0 +1,57 @@
+From: Arun Raghavan <arun@arunraghavan.net>
+Date: Wed, 13 Sep 2017 09:22:27 +0530
+Subject: bluez: Don't autodetect MTU by default
+
+This breaks a lot of headsets, so disabling by default. Can be
+re-enabled in configuration for specific hardware where it is deemed
+necessary.
+
+Also added some debug logging to be able to examine what MTU size is
+reported by the device.
+
+BugLink: https://bugs.freedesktop.org/show_bug.cgi?id=102660
+(cherry picked from commit 9e895b172569ce5c34d977dbb7fded8c7957782e)
+---
+ src/modules/bluetooth/backend-native.c         | 1 +
+ src/modules/bluetooth/module-bluez5-device.c   | 2 +-
+ src/modules/bluetooth/module-bluez5-discover.c | 2 +-
+ 3 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/modules/bluetooth/backend-native.c b/src/modules/bluetooth/backend-native.c
+index 6eb4e16..0f0104d 100644
+--- a/src/modules/bluetooth/backend-native.c
++++ b/src/modules/bluetooth/backend-native.c
+@@ -206,6 +206,7 @@ static int sco_acquire_cb(pa_bluetooth_transport *t, bool optional, size_t *imtu
+         if (getsockopt(sock, SOL_SCO, SCO_OPTIONS, &sco_opt, &len) < 0)
+             pa_log_warn("getsockopt(SCO_OPTIONS) failed, loading defaults");
+         else {
++            pa_log_debug("autodetected imtu = omtu = %u", sco_opt.mtu);
+             if (imtu) *imtu = sco_opt.mtu;
+             if (omtu) *omtu = sco_opt.mtu;
+         }
+diff --git a/src/modules/bluetooth/module-bluez5-device.c b/src/modules/bluetooth/module-bluez5-device.c
+index c0e681b..a37c3d5 100644
+--- a/src/modules/bluetooth/module-bluez5-device.c
++++ b/src/modules/bluetooth/module-bluez5-device.c
+@@ -2256,7 +2256,7 @@ int pa__init(pa_module* m) {
+         goto fail_free_modargs;
+     }
+ 
+-    autodetect_mtu = true;
++    autodetect_mtu = false;
+     if (pa_modargs_get_value_boolean(ma, "autodetect_mtu", &autodetect_mtu) < 0) {
+         pa_log("Invalid boolean value for autodetect_mtu parameter");
+         goto fail_free_modargs;
+diff --git a/src/modules/bluetooth/module-bluez5-discover.c b/src/modules/bluetooth/module-bluez5-discover.c
+index 97ff943..c535ead 100644
+--- a/src/modules/bluetooth/module-bluez5-discover.c
++++ b/src/modules/bluetooth/module-bluez5-discover.c
+@@ -124,7 +124,7 @@ int pa__init(pa_module *m) {
+         goto fail;
+     }
+ 
+-    autodetect_mtu = true;
++    autodetect_mtu = false;
+     if (pa_modargs_get_value_boolean(ma, "autodetect_mtu", &autodetect_mtu) < 0) {
+         pa_log("Invalid boolean value for autodetect_mtu parameter");
+         goto fail;
