@@ -1,3 +1,10 @@
+pulseaudio (11.0-2) unstable; urgency=medium
+
+  * Backport patches from pending 11.1 upstream bugfix release
+    - Fixes crash on load of virtual sinks (Closes: #875541)
+
+ -- Felipe Sateler <fsateler@debian.org>  Wed, 13 Sep 2017 20:10:52 -0300
+
 pulseaudio (11.0-1) unstable; urgency=medium
 
   * New upstream version 11.0
