@@ -1,3 +1,21 @@
+PulseAudio 11.1
+
+A bug fix release.
+
+ * Fix a crash in filter modules related to flat volumes and volume sharing
+ * Fix a crash when the bluetooth adapter reports weird MTU size
+ * Disable bluetooth MTU autodetection by default
+ * Add mixer handling back for hardware that doesn't have any alsa-lib
+   configuration
+ * Prioritize USB devices over built-in sound cards (11.0 was supposed to have
+   this feature, but the implementation turned out to be incomplete)
+
+Contributors
+
+  Arun Raghavan
+  Tanu Kaskinen
+
+
 PulseAudio 11.0
 
 Changes at a glance:
@@ -17,6 +35,7 @@ Changes at a glance:
    module-virtual-surround-sink
  * Fixed input device handling in module-waveout
  * Improved bluetooth MTU configuration
+ * GNU Hurd support
  * Applications can request LADSPA or virtual surround filtering for their
    streams
  * Support for 32-bit applications on 64-bit systems in padsp

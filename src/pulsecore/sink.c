@@ -1710,7 +1710,8 @@ static void compute_reference_ratios(pa_sink *s) {
     PA_IDXSET_FOREACH(i, s->inputs, idx) {
         compute_reference_ratio(i);
 
-        if (i->origin_sink && (i->origin_sink->flags & PA_SINK_SHARE_VOLUME_WITH_MASTER))
+        if (i->origin_sink && (i->origin_sink->flags & PA_SINK_SHARE_VOLUME_WITH_MASTER)
+                && PA_SINK_IS_LINKED(i->origin_sink->state))
             compute_reference_ratios(i->origin_sink);
     }
 }
@@ -1737,7 +1738,8 @@ static void compute_real_ratios(pa_sink *s) {
             pa_cvolume_reset(&i->real_ratio, i->real_ratio.channels);
             i->soft_volume = i->volume_factor;
 
-            compute_real_ratios(i->origin_sink);
+            if (PA_SINK_IS_LINKED(i->origin_sink->state))
+                compute_real_ratios(i->origin_sink);
 
             continue;
         }
@@ -1836,7 +1838,8 @@ static void get_maximum_input_volume(pa_sink *s, pa_cvolume *max_volume, const p
         pa_cvolume remapped;
 
         if (i->origin_sink && (i->origin_sink->flags & PA_SINK_SHARE_VOLUME_WITH_MASTER)) {
-            get_maximum_input_volume(i->origin_sink, max_volume, channel_map);
+            if (PA_SINK_IS_LINKED(i->origin_sink->state))
+                get_maximum_input_volume(i->origin_sink, max_volume, channel_map);
 
             /* Ignore this input. The origin sink uses volume sharing, so this
              * input's volume will be set to be equal to the root sink's real
@@ -1892,7 +1895,8 @@ static void update_real_volume(pa_sink *s, const pa_cvolume *new_volume, pa_chan
                 compute_reference_ratio(i);
             }
 
-            update_real_volume(i->origin_sink, new_volume, channel_map);
+            if (PA_SINK_IS_LINKED(i->origin_sink->state))
+                update_real_volume(i->origin_sink, new_volume, channel_map);
         }
     }
 }
@@ -1947,11 +1951,12 @@ static void propagate_reference_volume(pa_sink *s) {
         pa_cvolume new_volume;
 
         if (i->origin_sink && (i->origin_sink->flags & PA_SINK_SHARE_VOLUME_WITH_MASTER)) {
-            propagate_reference_volume(i->origin_sink);
+            if (PA_SINK_IS_LINKED(i->origin_sink->state))
+                propagate_reference_volume(i->origin_sink);
 
             /* Since the origin sink uses volume sharing, this input's volume
              * needs to be updated to match the root sink's real volume, but
-             * that will be done later in update_shared_real_volume(). */
+             * that will be done later in update_real_volume(). */
             continue;
         }
 
@@ -2005,7 +2010,8 @@ static bool update_reference_volume(pa_sink *s, const pa_cvolume *v, const pa_ch
         return false;
 
     PA_IDXSET_FOREACH(i, s->inputs, idx) {
-        if (i->origin_sink && (i->origin_sink->flags & PA_SINK_SHARE_VOLUME_WITH_MASTER))
+        if (i->origin_sink && (i->origin_sink->flags & PA_SINK_SHARE_VOLUME_WITH_MASTER)
+                && PA_SINK_IS_LINKED(i->origin_sink->state))
             update_reference_volume(i->origin_sink, v, channel_map, false);
     }
 
@@ -2176,7 +2182,8 @@ static void propagate_real_volume(pa_sink *s, const pa_cvolume *old_real_volume)
             pa_sw_cvolume_multiply(&new_volume, &new_volume, &i->reference_ratio);
             pa_sink_input_set_volume_direct(i, &new_volume);
 
-            if (i->origin_sink && (i->origin_sink->flags & PA_SINK_SHARE_VOLUME_WITH_MASTER))
+            if (i->origin_sink && (i->origin_sink->flags & PA_SINK_SHARE_VOLUME_WITH_MASTER)
+                    && PA_SINK_IS_LINKED(i->origin_sink->state))
                 propagate_real_volume(i->origin_sink, old_real_volume);
         }
     }
@@ -3527,8 +3534,6 @@ unsigned pa_device_init_priority(pa_proplist *p) {
             priority += 500;
         else if (pa_streq(s, "portable"))
             priority += 450;
-        else if (pa_streq(s, "internal"))
-            priority += 400;
     }
 
     if ((s = pa_proplist_gets(p, PA_PROP_DEVICE_BUS))) {
