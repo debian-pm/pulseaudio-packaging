@@ -1,6 +1,0 @@
-sink-source-don-t-try-to-update-volumes-of-not-yet-linked.patch
-sink-source-fix-out-of-date-comments.patch
-sink-remove-priority-bonus-for-the-internal-form-factor.patch
-alsa-mixer-add-mixer-handling-to-the-fallback-stereo-case.patch
-bluez-Don-t-autodetect-MTU-by-default.patch
-bluez-Don-t-crash-on-strange-MTU-sizes.patch
