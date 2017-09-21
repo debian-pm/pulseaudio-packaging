@@ -6,7 +6,6 @@ Uploaders: Sjoerd Simons <sjoerd@debian.org>,
     Felipe Sateler <fsateler@debian.org>
 Build-Depends: debhelper (>= 10),
     check,
-    dh-autoreconf,
     dh-exec,
     dpkg-dev (>= 1.17.14),
     intltool,

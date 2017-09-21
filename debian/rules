@@ -32,7 +32,7 @@ ifeq ($(words $(sort $(filter stage1,$(DEB_BUILD_PROFILES)))),1)
 endif
 
 %:
-	dh $@ --with autoreconf
+	dh $@
 
 
 override_dh_auto_configure:
