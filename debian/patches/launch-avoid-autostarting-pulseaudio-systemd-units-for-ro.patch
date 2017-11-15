@@ -1,0 +1,37 @@
+From: Felipe Sateler <fsateler@debian.org>
+Date: Wed, 6 Sep 2017 19:55:56 -0300
+Subject: launch: avoid autostarting pulseaudio systemd units for root
+
+The autospawn mechanism already had a root-autospawn protection mechanism. When
+using systemd that was lost. Systemd 234 has a mechanism to conditionalize unit starting
+on the running user, so lets do that to protect against root autospawning.
+
+(cherry picked from commit 24928d6b6fa1cde3312bcf63e4e14d7003aadc69)
+---
+ src/daemon/systemd/user/pulseaudio.service.in | 1 +
+ src/daemon/systemd/user/pulseaudio.socket     | 1 +
+ 2 files changed, 2 insertions(+)
+
+diff --git a/src/daemon/systemd/user/pulseaudio.service.in b/src/daemon/systemd/user/pulseaudio.service.in
+index 2bd780f..46897bf 100644
+--- a/src/daemon/systemd/user/pulseaudio.service.in
++++ b/src/daemon/systemd/user/pulseaudio.service.in
+@@ -14,6 +14,7 @@ Description=Sound Service
+ # After=pulseaudio.socket is not needed, as it is already implicit in the
+ # socket-service relationship, see systemd.socket(5).
+ Requires=pulseaudio.socket
++ConditionUser=!root
+ 
+ [Service]
+ # Note that notify will only work if --daemonize=no
+diff --git a/src/daemon/systemd/user/pulseaudio.socket b/src/daemon/systemd/user/pulseaudio.socket
+index 332ece8..98c1002 100644
+--- a/src/daemon/systemd/user/pulseaudio.socket
++++ b/src/daemon/systemd/user/pulseaudio.socket
+@@ -1,5 +1,6 @@
+ [Unit]
+ Description=Sound System
++ConditionUser=!root
+ 
+ [Socket]
+ Priority=6
