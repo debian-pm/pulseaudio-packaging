@@ -1,3 +1,14 @@
+pulseaudio (11.1-2) unstable; urgency=low
+
+  * Backport upstream patch to use ConditionUser=!root systemd
+  * Use systemd socket activation by default on linux systems.
+    At the same time, disable autospawn to prevent conflicts
+    Non-linux archs are left untouched.
+    (Closes: #881712, #622989, #521675, #763524)
+  * Upload with urgency=low just in case.
+
+ -- Felipe Sateler <fsateler@debian.org>  Fri, 17 Nov 2017 20:34:59 -0300
+
 pulseaudio (11.1-1) unstable; urgency=medium
 
   * New upstream version 11.1
