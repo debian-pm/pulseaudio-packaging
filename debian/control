@@ -53,7 +53,7 @@ Depends: ${shlibs:Depends}, ${misc:Depends}, adduser,
   libasound2-plugins [linux-any],
   libpulse0 (= ${binary:Version}),
   pulseaudio-utils
-Recommends: rtkit
+Recommends: rtkit, libpam-systemd
 Suggests: udev [linux-any], pavumeter, pavucontrol, paman, paprefs
 Description: PulseAudio sound server
  PulseAudio, previously known as Polypaudio, is a sound server for POSIX and
