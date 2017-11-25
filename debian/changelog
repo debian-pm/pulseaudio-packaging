@@ -235,7 +235,7 @@ pulseaudio (7.0-1) unstable; urgency=medium
 
 pulseaudio (6.99.1-2) experimental; urgency=medium
 
-  * Fix test suite failure on alpha. Patch from Michael Cree. 
+  * Fix test suite failure on alpha. Patch from Michael Cree.
     Closes: #798248
 
  -- Felipe Sateler <fsateler@debian.org>  Thu, 10 Sep 2015 20:44:53 -0300
@@ -457,7 +457,7 @@ pulseaudio (5.0-3) unstable; urgency=medium
     - bash completion is not meant to be executable
     - neither are the pulseaudio configuration files
   * Do not start pulseaudio in X session if it was already started.
-     Closes: #743813 
+     Closes: #743813
   * Remove pulseaudio init script, place it under examples.
      Closes: #696842
   * debian/patches/only-autostart-kde-version.patch:
@@ -719,7 +719,7 @@ pulseaudio (2.0-2) unstable; urgency=low
     - LSB: NetworkManager to network-manager.
     - LSB: added missing Stop levels 0 and 6.
     - Added --disallow-exit option (Closes: #671470).
-  * pulseaudio-esound-compat.links: added man page link for esd.1.gz 
+  * pulseaudio-esound-compat.links: added man page link for esd.1.gz
   * watch: updated to point to FreeDesktop.org XZ tarball archive.
 
  -- Sjoerd Simons <sjoerd@debian.org>  Fri, 18 May 2012 20:54:08 +0200
