@@ -1,3 +1,16 @@
+pulseaudio (11.1-4) unstable; urgency=medium
+
+  * Add dbus-user-session to Recommends of pulseaudio.
+    Dbus usage is otherwise broken, because there is no daemon to connect to,
+    and dbus does not autolaunch when there is no X11 around.
+    (Closes: #883542)
+  * Drop libatomic-ops-dev Build-Dependency.
+    It is never used when building with gcc, since it is only used as fallback
+    when atomic builtins are not available, but gcc does have them.
+    (Closes: #883597)
+
+ -- Felipe Sateler <fsateler@debian.org>  Wed, 06 Dec 2017 18:11:29 -0300
+
 pulseaudio (11.1-3) unstable; urgency=medium
 
   * Use dh_missing instead of dh_install --fail-missing
