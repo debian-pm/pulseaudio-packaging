@@ -40,8 +40,8 @@ Build-Depends: debhelper (>= 10),
     libxtst-dev
 Standards-Version: 4.1.1
 Rules-Requires-Root: no
-Vcs-Git: https://anonscm.debian.org/git/pkg-pulseaudio/pulseaudio.git
-Vcs-Browser: https://anonscm.debian.org/cgit/pkg-pulseaudio/pulseaudio.git
+Vcs-Browser: https://salsa.debian.org/pulseaudio-team/pulseaudio
+Vcs-Git: https://salsa.debian.org/pulseaudio-team/pulseaudio.git
 Homepage: http://www.pulseaudio.org
 
 Package: pulseaudio
