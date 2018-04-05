@@ -199,7 +199,7 @@ Description: Bluetooth module for PulseAudio sound server
 Package: pulseaudio-equalizer
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends},
- python, python-qt4, python-sip, python-qt4-dbus, python-dbus
+ python, python-pyqt5, python-sip, python-dbus.mainloop.pyqt5, python-dbus
 Description: Equalizer sink module for PulseAudio sound server
  PulseAudio, previously known as Polypaudio, is a sound server for POSIX and
  WIN32 systems. It is a drop in replacement for the ESD sound server with
