@@ -1,3 +1,21 @@
+pulseaudio (11.1-5) unstable; urgency=medium
+
+  * Change Vcs-* urls to new home in salsa.debian.org
+  * Backport upstream patch to use memfd_create wrapper provided by glibc
+    if available.
+    (Closes: #894104)
+  * Pick upstream patch to port qpaeq to Qt5 (Closes: #894489)
+  * Change Vcs-* urls to new home in salsa.debian.org
+  * Fix typo in debian/NEWS. Thanks lintian
+  * Move bluetooth module to priority optional, extra is deprecated
+  * Remove versioned build-dependencies on libraries present in oldoldstable.
+    These are libasound2-dev, libbluetooth-dev, libldtl-dev, liborc-0.4-dev,
+    libsndfile1-dev, libudev-dev, libxcb1-dev
+  * Drop Breaks against ancient libjack versions, already present in oldoldstable
+  * Drop Breaks against ancient pavucontrol and pulseaudio versions
+
+ -- Felipe Sateler <fsateler@debian.org>  Thu, 05 Apr 2018 15:55:56 -0300
+
 pulseaudio (11.1-4) unstable; urgency=medium
 
   * Add dbus-user-session to Recommends of pulseaudio.
