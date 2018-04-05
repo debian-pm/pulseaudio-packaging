@@ -183,7 +183,7 @@ Description: RAOP module for PulseAudio sound server
 Package: pulseaudio-module-bluetooth
 Build-Profiles: <!stage1>
 Architecture: linux-any
-Priority: extra
+Priority: optional
 Depends: ${shlibs:Depends}, ${misc:Depends}, bluez (>= 5.23)
 Breaks: pulseaudio (<< 0.9.14-2)
 Description: Bluetooth module for PulseAudio sound server
