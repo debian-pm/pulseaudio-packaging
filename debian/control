@@ -238,6 +238,14 @@ Description: PulseAudio client libraries (glib support)
  .
  This package adds support for glib2 client applications.
 
+Package: pulseaudio-dev
+Section: libdevel
+Architecture: all
+Multi-Arch: foreign
+Depends: ${misc:Depends},
+  pulseaudio (= ${binary:Version})
+Description: Pulsecore development headers
+
 Package: libpulse-dev
 Section: libdevel
 Architecture: any

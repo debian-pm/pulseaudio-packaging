@@ -1,3 +1,4 @@
+Install-pulsecore-headers.patch
 launch-avoid-autostarting-pulseaudio-systemd-units-for-ro.patch
 memfd-wrappers-only-define-memfd_create-if-not-already-de.patch
 qpaeq-port-to-PyQt5.patch

@@ -1,0 +1,61 @@
+From e8977c177b5ab140e9bf897ae3e46d6a5849dc8c Mon Sep 17 00:00:00 2001
+From: <juho.hamalainen@tieto.com>
+Date: Thu, 5 Feb 2015 11:00:52 +0200
+Subject: [PATCH] sfos: build: Install pulsecore headers.
+
+This is for building out-of-tree modules. Upstream doesn't want to
+support out-of-tree modules, so this patch is not upstreamable.
+Mer/Nemo should try to not depend on any out-of-tree modules.
+---
+ Makefile.am     |  2 +-
+ configure.ac    |  1 +
+ pulsecore.pc.in | 12 ++++++++++++
+ 3 files changed, 14 insertions(+), 1 deletion(-)
+ create mode 100644 pulsecore.pc.in
+
+diff --git a/Makefile.am b/Makefile.am
+index 1f460a97..6a411109 100644
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -55,7 +55,7 @@ dist_vapi_DATA = \
+ 		vala/libpulse-simple.deps vala/libpulse-simple.vapi
+ 
+ pkgconfigdir = $(libdir)/pkgconfig
+-pkgconfig_DATA = libpulse.pc libpulse-simple.pc
++pkgconfig_DATA = libpulse.pc libpulse-simple.pc pulsecore.pc
+ 
+ if HAVE_GLIB20
+ pkgconfig_DATA += \
+diff --git a/configure.ac b/configure.ac
+index 77b5ff5d..45ae6742 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -1498,6 +1498,7 @@ man/Makefile
+ libpulse.pc
+ libpulse-simple.pc
+ libpulse-mainloop-glib.pc
++pulsecore.pc
+ doxygen/Makefile
+ doxygen/doxygen.conf
+ src/pulse/version.h
+diff --git a/pulsecore.pc.in b/pulsecore.pc.in
+new file mode 100644
+index 00000000..b5b4a9bd
+--- /dev/null
++++ b/pulsecore.pc.in
+@@ -0,0 +1,12 @@
++prefix=@prefix@
++exec_prefix=${prefix}
++libdir=@libdir@
++includedir=${prefix}/include
++libexecdir=@libexecdir@
++pulsetestdir=${libexecdir}/pulse-tests
++
++Name: pulsecore
++Description: Module building interface for pulseaudio
++Version: @PA_MAJORMINOR@
++Libs: -L${libdir} -L${libdir}/pulseaudio -L${libdir}/pulse-@PA_MAJORMINOR@/modules -lpulsecore-@PA_MAJORMINOR@ -lpulsecommon-@PA_MAJORMINOR@ -lpulse @PTHREAD_LIBS@
++Cflags: -D_REENTRANT -D__INCLUDED_FROM_PULSE_AUDIO -DPA_DEFAULT_CONFIG_DIR=\"@PA_DEFAULT_CONFIG_DIR@\" -I${includedir}
+-- 
+2.17.1
+
