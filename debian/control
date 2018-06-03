@@ -240,8 +240,7 @@ Description: PulseAudio client libraries (glib support)
 
 Package: pulseaudio-dev
 Section: libdevel
-Architecture: all
-Multi-Arch: foreign
+Architecture: any
 Depends: ${misc:Depends},
   pulseaudio (= ${binary:Version})
 Description: Pulsecore development headers
